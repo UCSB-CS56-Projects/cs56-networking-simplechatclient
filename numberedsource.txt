@@ -1,0 +1,858 @@
+
+
+2012-06-08 17:37   src/edu/ucsb/cs56/S12/ktbui/Chat_Client.java   Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ktbui;
+    2	import java.net.*;
+    3	import java.io.*;
+    4	import java.util.Scanner;
+    5	import javax.swing.JOptionPane;
+    6	
+    7	/** Implements the Chat Client */
+    8	
+    9	public class Chat_Client implements Runnable
+   10	{
+   11	    //globals
+   12	    Socket SOCK;
+   13	    Scanner INPUT;
+   14	    Scanner SEND = new Scanner(System.in);
+   15	    PrintWriter OUT;
+   16	
+   17	    public Chat_Client(Socket X) //takes socket as argument
+   18	    {
+   19		this.SOCK = X;
+   20	    }
+   21	
+   22	
+   23	    public void run() //thread started from Chat_GUI
+   24	    {
+   25		try
+   26	        {
+   27		            try
+   28			    {
+   29	                        
+   30				INPUT = new Scanner(SOCK.getInputStream());
+   31	                        OUT = new PrintWriter(SOCK.getOutputStream());
+   32				OUT.flush();
+   33				
+   34				checkStream();
+   35			    }
+   36		       	finally
+   37			    {
+   38				SOCK.close();
+   39			    }
+   40		}
+   41	    
+   42		catch(Exception X) { System.out.print(X); }
+   43	
+   44	    }
+   45	
+   46	    public void disconnect() throws IOException
+   47	    {
+   48		OUT.println(Chat_GUI.UserName + " has disconnected.");      //tell who has disconnected
+   49		OUT.flush();                                                //clear out
+   50		SOCK.close();                                               //close socket
+   51		JOptionPane.showMessageDialog(null, "You disconnected!");   // lets users know that they have disconnnected.
+   52		System.exit(0);
+   53	    } 
+   54	
+   55	    public void checkStream() //receive
+   56	    {
+
+
+
+
+
+
+
+2012-06-08 17:37   src/edu/ucsb/cs56/S12/ktbui/Chat_Client.java   Page 2
+
+
+   57		while(true)
+   58		    {
+   59			accept();
+   60			
+   61	            }
+   62	
+   63	    }
+   64	
+   65		public void accept()
+   66		{
+   67		    if(INPUT.hasNext()) //if there is an input, get next line
+   68			{
+   69			    String MESSAGE = INPUT.nextLine();
+   70			    
+   71			    if(MESSAGE.contains("!@#"))       //characters from chat_server
+   72				{
+   73				    String TEMP1 = MESSAGE.substring(3);  //everything after !@#
+   74				           TEMP1 = TEMP1.replace("[",""); //peels off brackets
+   75				           TEMP1 = TEMP1.replace("]","");
+   76				    
+   77				    String[] CurrentUsers = TEMP1.split(", "); //split string wherever there is ,
+   78	
+   79				    Chat_GUI.JL_ONLINE.setListData(CurrentUsers); //sets the list of users for the chat gui
+   80			        }
+   81			    else
+   82				{
+   83				    Chat_GUI.TA_CONVERSATION.append(MESSAGE + "\n");  //if not !@# then append what the message is
+   84				}
+   85			}
+   86		}
+   87	    
+   88	
+   89	 
+   90	    public void send(String X)
+   91	    {
+   92		OUT.println(Chat_GUI.UserName + ": " + X); //take username and add message
+   93		OUT.flush();                               //clear text field
+   94		Chat_GUI.textFieldMessage.setText("");           // set text field to clear after message is sent
+   95	    }
+   96	
+   97	}
+   98	
+   99	
+  100	
+  101	
+  102		       
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ktbui;
+    2	import javax.swing.*;
+    3	import java.io.PrintWriter;
+    4	import java.net.*;
+    5	import java.lang.String;
+    6	
+    7	/* The Graphical User Interfce for our Chatroom */
+    8	public class Chat_GUI
+    9	{
+   10	    //globals
+   11	    private static Chat_Client ChatClient;
+   12	    public static String UserName = "";
+   13	
+   14	    //main window
+   15	    public static JFrame MainWindow = new JFrame();  //main window
+   16	    private static JButton AboutButton = new JButton();  //about button
+   17	    private static JButton CONNECT = new JButton(); // connect button
+   18	    private static JButton DISCONNECT = new JButton(); //disconnect button
+   19	    private static JButton HELP = new JButton(); //help button
+   20	    private static JButton SEND = new JButton(); //send button
+   21	    private static JLabel messageLabel = new JLabel(" Message: " ); //label
+   22	    public static JTextField textFieldMessage = new JTextField(20);
+   23	    private static JLabel conversationLabel = new JLabel(); //conversation label
+   24	    public static JTextArea TA_CONVERSATION = new JTextArea(); //conversation of users
+   25	    private static JScrollPane SP_CONVERSATION = new JScrollPane(); //scroll bar
+   26	    private static JLabel L_ONLINE = new JLabel();  // users logged in label
+   27	    public static JList JL_ONLINE = new JList(); // users that are logged in
+   28	    private static JScrollPane SP_ONLINE = new JScrollPane();
+   29	    private static JLabel L_LoggedInAs = new JLabel(); //currently logged in as
+   30	    private static JLabel L_LoggedInAsBox = new JLabel(); // box for users logged in
+   31	
+   32	    
+   33	    // login window
+   34	
+   35	    public static JFrame LogInWindow = new JFrame();  //log in window jframe
+   36	    public static JTextField TF_UserNameBox = new JTextField(20); //log in text field
+   37	    private static JButton B_ENTER = new JButton("ENTER"); //enter button
+   38	    private static JLabel L_EnterUserName = new JLabel(" Enter username: ");
+   39	    private static JPanel P_LogIn = new JPanel(); //log in panel
+   40	
+   41	    public static void main(String args[]) //main
+   42	    {
+   43		createMainWindow(); //builds main window
+   44		setButtons();  //sets  up initial buttons
+   45	
+   46	    }
+   47	
+   48	        public static void Connect() //connects to socket
+   49	    {
+   50		try
+   51		    {
+   52			final int PORT = 5000;
+   53			final String HOST = "localhost";
+   54			Socket SOCK = new Socket(HOST,PORT);  //connects to socket using local host and port
+   55			System.out.println ("You Connected to: " + HOST);
+   56	
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 2
+
+
+   57			ChatClient = new Chat_Client(SOCK);
+   58	
+   59			PrintWriter OUT = new PrintWriter(SOCK.getOutputStream());
+   60			OUT.println(UserName); //prints the username
+   61			OUT.flush();
+   62	
+   63			Thread X = new Thread(ChatClient); //new chat client thread
+   64			X.start(); //begins runnable method of chat_client
+   65	
+   66		    }
+   67		catch(Exception X)
+   68		    {
+   69			System.out.print(X);   //exits on exception
+   70			System.exit(0);
+   71	
+   72		    }
+   73	            
+   74	    }
+   75	
+   76	
+   77	  
+   78	    public static void createMainWindow()
+   79	    {
+   80		MainWindow.setTitle(UserName + " 's Chat Box");
+   81		MainWindow.setSize(450,500);
+   82		MainWindow.setLocation(220,180);
+   83		MainWindow.setResizable(false);
+   84		buildMainWindow();
+   85		mainWindowAction();
+   86		MainWindow.setVisible(true);
+   87	    }
+   88	
+   89	    public static void buildMainWindow() //configures everything needed in the main window
+   90	    {
+   91		MainWindow.setBackground(new java.awt.Color(255,255,255));
+   92		MainWindow.setSize(500,320);
+   93		MainWindow.getContentPane().setLayout(null);
+   94		SEND.setBackground(new java.awt.Color(0,0,255));
+   95	        SEND.setForeground(new java.awt.Color(255,255,255));
+   96	        SEND.setText("SEND");
+   97	        MainWindow.getContentPane().add(SEND);
+   98	        SEND.setBounds(250,40,110,26);
+   99	
+  100	        DISCONNECT.setBackground(new java.awt.Color(0,0,255));
+  101	        DISCONNECT.setForeground(new java.awt.Color(255,255,255));
+  102	        DISCONNECT.setText("DISCONNECT");
+  103	        MainWindow.getContentPane().add(DISCONNECT);
+  104	        DISCONNECT.setBounds(10,40,110,26);
+  105	
+  106	        CONNECT.setBackground(new java.awt.Color(0,0,255));
+  107	        CONNECT.setForeground(new java.awt.Color(255,255,255));
+  108	        CONNECT.setText("CONNECT");
+  109	        CONNECT.setToolTipText("");
+  110	        MainWindow.getContentPane().add(CONNECT);
+  111	        CONNECT.setBounds(130,40,110,26);
+  112	
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 3
+
+
+  113	        HELP.setBackground(new java.awt.Color(0,0,255));
+  114	        HELP.setForeground(new java.awt.Color(255,255,255));
+  115	        HELP.setText("HELP");
+  116	        MainWindow.getContentPane().add(HELP);
+  117	        HELP.setBounds(370,40,110,26);
+  118	
+  119		
+  120	        messageLabel.setText("Message: " );
+  121	        MainWindow.getContentPane().add(messageLabel);
+  122	        messageLabel.setBounds(10,10,100,20);
+  123	
+  124	        textFieldMessage.setForeground(new java.awt.Color(0,0,255));
+  125		textFieldMessage.requestFocus();
+  126	        MainWindow.getContentPane().add(textFieldMessage);
+  127		textFieldMessage.setBounds(100,4,225,30);
+  128	
+  129	        conversationLabel.setHorizontalAlignment(SwingConstants.CENTER);
+  130	        conversationLabel.setText("Conversation");
+  131	        MainWindow.getContentPane().add(conversationLabel);
+  132	        conversationLabel.setBounds(100,65,140,30);
+  133	
+  134	        TA_CONVERSATION.setColumns(20);
+  135	        TA_CONVERSATION.setFont(new java.awt.Font("Tahoma",0,12));
+  136	
+  137	        TA_CONVERSATION.setForeground(new java.awt.Color(0,0,255));
+  138	        TA_CONVERSATION.setLineWrap(true);
+  139	        TA_CONVERSATION.setRows(5);
+  140		TA_CONVERSATION.setEditable(false);
+  141	
+  142	        SP_CONVERSATION.setHorizontalScrollBarPolicy( ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+  143	        SP_CONVERSATION.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+  144	        SP_CONVERSATION.setViewportView(TA_CONVERSATION);
+  145	        MainWindow.getContentPane().add(SP_CONVERSATION);
+  146	        SP_CONVERSATION.setBounds(10,90,330,160);
+  147	
+  148	        L_ONLINE.setHorizontalAlignment(SwingConstants.CENTER);
+  149	        L_ONLINE.setText("Currently Online");
+  150	        L_ONLINE.setToolTipText("");
+  151	        MainWindow.getContentPane().add(L_ONLINE);
+  152	        L_ONLINE.setBounds(350, 70 , 130, 16);
+  153	
+  154		
+  155	       JL_ONLINE.setForeground(new java.awt.Color(0,0,255));
+  156		
+  157	
+  158	       SP_ONLINE.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+  159	       SP_ONLINE.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+  160	       SP_ONLINE.setViewportView(JL_ONLINE);
+  161	       MainWindow.getContentPane().add(SP_ONLINE);
+  162	       SP_ONLINE.setBounds(350,90,130,180);
+  163	
+  164	       L_LoggedInAs.setFont(new java.awt.Font("Tahoma",0,12));
+  165	       L_LoggedInAs.setText("Currently Logged In As");
+  166	       MainWindow.getContentPane().add(L_LoggedInAs);
+  167	       L_LoggedInAs.setBounds(348,0,140,15);
+  168	
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 4
+
+
+  169	       L_LoggedInAsBox.setHorizontalAlignment(SwingConstants.CENTER);
+  170	       L_LoggedInAsBox.setFont(new java.awt.Font("Tahoma",0,12));
+  171	       L_LoggedInAsBox.setForeground(new java.awt.Color(255,0,0));
+  172	       L_LoggedInAsBox.setBorder(BorderFactory.createLineBorder(new java.awt.Color(0,0,0)));
+  173	       MainWindow.getContentPane().add(L_LoggedInAsBox);
+  174	       L_LoggedInAsBox.setBounds(340,17,150,20);
+  175	
+  176	    }
+  177	
+  178	    public static void setButtons()  //turns off Send and Disconnect button until user is connected
+  179	    {
+  180		SEND.setEnabled(false);
+  181		DISCONNECT.setEnabled(false);
+  182		CONNECT.setEnabled(true);
+  183	
+  184	    }
+  185	
+  186	    public static void BuildLogInWindow()  //Builds log in window at the beginning
+  187	    {
+  188		LogInWindow.setTitle("What's your name?");
+  189		LogInWindow.setSize(400,100);
+  190		LogInWindow.setLocation(250,200);
+  191		LogInWindow.setResizable(false);
+  192		P_LogIn.add(L_EnterUserName);
+  193	        P_LogIn.add(TF_UserNameBox);	
+  194		P_LogIn.add(B_ENTER);
+  195		LogInWindow.add(P_LogIn);
+  196	
+  197		loginAction();
+  198		LogInWindow.setVisible(true);
+  199	
+  200	    }
+  201	
+  202	     
+  203	    public static void loginAction() //listener for after log in name is entered
+  204	    {
+  205		B_ENTER.addActionListener(
+  206		  new java.awt.event.ActionListener()
+  207		  {
+  208		      public void actionPerformed(java.awt.event.ActionEvent evt)
+  209		      { enterAction(); }
+  210	
+  211		  }
+  212	
+  213					  );
+  214	
+  215	    }
+  216	
+  217	  
+  218	
+  219	    public static void enterAction() //upon entering of username
+  220	    {
+  221		if(!TF_UserNameBox.getText().equals(""))
+  222		    {
+  223	
+  224			UserName = TF_UserNameBox.getText().trim();  //get username and trim
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 5
+
+
+  225			L_LoggedInAsBox.setText(UserName); //set name of log in box to user
+  226			Chat_Server.CurrentUsers.add(UserName); //add username to array
+  227			MainWindow.setTitle(UserName + "'s Chat Box"); //change name
+  228			LogInWindow.setVisible(false); //close log in window
+  229			SEND.setEnabled(true); //set button to on
+  230			DISCONNECT.setEnabled(true); //set button to on
+  231			CONNECT.setEnabled(false); //set button off
+  232			Connect(); // connect to socket
+  233	
+  234		    }
+  235		else
+  236		    { JOptionPane.showMessageDialog(null, "Please enter a name: "); }
+  237		
+  238	    }
+  239	
+  240	
+  241	    public static void mainWindowAction()
+  242	    {
+  243		SEND.addActionListener(
+  244		new java.awt.event.ActionListener()
+  245		{
+  246		    public void actionPerformed(java.awt.event.ActionEvent evt)
+  247		    { sendAction(); }
+  248		}
+  249	
+  250	    );
+  251	
+  252	    DISCONNECT.addActionListener(
+  253	    new java.awt.event.ActionListener()
+  254	    {
+  255		public void actionPerformed(java.awt.event.ActionEvent evt)
+  256		{ disconnectAction(); }
+  257	
+  258	    }
+  259	
+  260					   );
+  261	
+  262	     HELP.addActionListener(
+  263	    new java.awt.event.ActionListener()
+  264	    {
+  265		public void actionPerformed(java.awt.event.ActionEvent evt)
+  266		{ helpAction(); }
+  267	
+  268	    }
+  269	
+  270					   );
+  271	
+  272	     
+  273	     CONNECT.addActionListener(
+  274	    new java.awt.event.ActionListener()
+  275	    {
+  276	
+  277		public void actionPerformed(java.awt.event.ActionEvent evt)
+  278		{ BuildLogInWindow(); }
+  279	
+  280	    }
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 6
+
+
+  281	
+  282					 );
+  283	
+  284	    
+  285	
+  286	     
+  287	   
+  288	    }
+  289	
+  290	  
+  291	
+  292	
+  293	    public static void sendAction()  //sends chatclient message to users
+  294	    {
+  295	
+  296		if(!textFieldMessage.getText().equals(""))
+  297		    {
+  298			ChatClient.send(textFieldMessage.getText());
+  299			textFieldMessage.requestFocus();
+  300		    }
+  301	
+  302	    }
+  303	
+  304	    public static void disconnectAction() //disconnects
+  305	    {
+  306		try
+  307		    {
+  308			ChatClient.disconnect(); // disconnect
+  309		    }
+  310		catch(Exception Y) {Y.printStackTrace();}
+  311	
+  312	    }
+  313	
+  314	    public static void helpAction()
+  315	    {
+  316		JOptionPane.showMessageDialog(null, "Press connect and enter a name to start chatting. Run the Chat_Gui again to add more users.");
+  317	
+  318	    }
+  319	    
+  320					   
+  321	     
+  322	
+  323	
+  324	
+  325	
+  326	
+  327	
+  328	
+  329	
+  330	
+  331	
+  332	    
+  333	
+  334	} // class Chat_GUI
+  335	
+  336	
+
+
+
+
+
+
+
+2012-06-08 17:38    src/edu/ucsb/cs56/S12/ktbui/Chat_GUI.java     Page 7
+
+
+  337				     
+  338								   
+  339				     
+  340						
+  341	
+  342				    			  
+  343	 
+  344	      
+  345				 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-08 17:39   src/edu/ucsb/cs56/S12/ktbui/Chat_Server.java   Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ktbui;
+    2	import java.util.ArrayList;
+    3	import java.util.Scanner;
+    4	import javax.swing.JOptionPane;
+    5	import java.net.Socket;
+    6	import java.io.IOException;
+    7	import java.net.ServerSocket;
+    8	import java.lang.*;
+    9	import java.io.PrintWriter;
+   10	
+   11	/* The server on which our Chatroom takes place */ 
+   12	public class Chat_Server
+   13	{
+   14	
+   15	    public static ArrayList<Socket> ConnectionArray = new ArrayList<Socket>();  // list of sockets: holds Connections
+   16	    public static ArrayList<String> CurrentUsers = new ArrayList<String>();     // list of strings holds users in the chat
+   17	
+   18	    public static void main(String[] args) throws IOException
+   19	    {
+   20		try
+   21		    {
+   22			final int PORT = 5000;     //port
+   23			ServerSocket server = new ServerSocket(PORT);  //new server socket on 5000, sits and listens.
+   24			System.out.println("Waiting for clients...");
+   25	
+   26			while(true)           //infinite loop
+   27			    {
+   28				Socket SOCK = server.accept();   //new socket accepts client
+   29				ConnectionArray.add(SOCK);       // add socket connection into connection array
+   30	
+   31				System.out.println("Client connected from: " + SOCK.getLocalAddress().getHostName());  //print who connects and from where
+   32	
+   33				addUserName(SOCK); // Adds username to list of users that are online at all times
+   34	
+   35				Chat_Server_Return CHAT = new Chat_Server_Return(SOCK);  //new chat_server_return object(socket object in constructor)
+   36				Thread X = new Thread(CHAT);  //starts a new thread
+   37			        X.start(); //implements the run method within chat_server_return
+   38	
+   39			    }
+   40		    }
+   41	    
+   42		catch(Exception X) { System.out.print(X); }  // catches exceptions
+   43	    }
+   44	
+   45	
+   46				
+   47	public static void addUserName(Socket X) throws IOException
+   48	{
+   49	
+   50	    Scanner INPUT = new Scanner(X.getInputStream());  //gets input stream via scanner object
+   51	    String UserName = INPUT.nextLine(); //call next line
+   52	    CurrentUsers.add(UserName); //append username to CurrentUsers
+   53	
+   54	    for(int i = 1; i <= Chat_Server.ConnectionArray.size(); i++) // cycle through every connection
+   55		{ 
+   56		    Socket TEMP_SOCK = (Socket) Chat_Server.ConnectionArray.get(i-1); //assigns connection array socket to temporary socket
+
+
+
+
+
+
+
+2012-06-08 17:39   src/edu/ucsb/cs56/S12/ktbui/Chat_Server.java   Page 2
+
+
+   57		    PrintWriter OUT = new PrintWriter(TEMP_SOCK.getOutputStream()); //pass in outputstream of temporary socket into PrintWriter
+   58		    OUT.println("!@#" + CurrentUsers); // sends entire arrayList and fills the Jlist with Current users
+   59		    OUT.flush(); //clear outputstream
+   60	
+   61		}
+   62	}
+   63	
+   64	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-08 17:40 src/edu/ucsb/cs56/S12/ktbui/Chat_Server_Return.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ktbui;
+    2	import java.io.*;
+    3	import java.net.*;
+    4	import java.util.Scanner;
+    5	import java.io.IOException;
+    6	import java.net.Socket;
+    7	
+    8	/* Return class for the chat server */
+    9	
+   10	public class Chat_Server_Return implements Runnable //threaded object
+   11	{
+   12	    //globals
+   13	    Socket SOCK;
+   14	    private Scanner INPUT;
+   15	    private PrintWriter OUT;
+   16	    String MESSAGE = "";
+   17	
+   18	
+   19	
+   20	    public Chat_Server_Return(Socket X) //constructer accepts a Socket object
+   21	    {
+   22		this.SOCK = X;                                   //assigns socket to global sock
+   23	
+   24	    }
+   25	
+   26	
+   27	
+   28	    public void CheckConnection() throws IOException
+   29	    {
+   30		if(!SOCK.isConnected())   //if socket is not connected
+   31		    {
+   32			for(int i =1; i<= Chat_Server.ConnectionArray.size(); i++) //iterate through connection array
+   33			    {
+   34				if(Chat_Server.ConnectionArray.get(i) == SOCK)
+   35				    {
+   36					Chat_Server.ConnectionArray.remove(i); //remove socket
+   37				    }
+   38			    }
+   39			for(int i =1; i <= Chat_Server.ConnectionArray.size();i++)
+   40			    {
+   41				Socket TEMP_SOCK = (Socket) Chat_Server.ConnectionArray.get(i-1);   //
+   42				PrintWriter TEMP_OUT = new PrintWriter(TEMP_SOCK.getOutputStream());
+   43				TEMP_OUT.println(TEMP_SOCK.getLocalAddress().getHostName() + " disconnected "); //says who and from where they disconnected
+   44				TEMP_OUT.flush();
+   45			         //shows disconnection at server
+   46				
+   47				System.out.println(TEMP_SOCK.getLocalAddress().getHostName() + " disconnected" ) ;
+   48	
+   49			    }
+   50		    }
+   51	      
+   52	
+   53	    }
+   54	
+   55	
+   56	    public void run()  //called from Chat_server through starting thread, goes if here socket is connected
+
+
+
+
+
+
+
+2012-06-08 17:40 src/edu/ucsb/cs56/S12/ktbui/Chat_Server_Return.java Page 2
+
+
+   57	    {
+   58		try
+   59		    {       try
+   60	                    {
+   61				INPUT = new Scanner(SOCK.getInputStream());    //input stream
+   62	                        OUT = new PrintWriter(SOCK.getOutputStream()); // output stream
+   63			
+   64				
+   65			
+   66			        
+   67		      
+   68				while(true)   //infinite loop
+   69				    {
+   70					CheckConnection();
+   71	
+   72					if(!INPUT.hasNext()) //if theres no input
+   73					    {
+   74					    return;  //return
+   75					    }
+   76	
+   77					MESSAGE = INPUT.nextLine();  //message
+   78	
+   79					System.out.println("Client said: " + MESSAGE); // print what client said
+   80	
+   81					for (int i = 1; i <= Chat_Server.ConnectionArray.size(); i++) //iterate through connection array
+   82					    {
+   83						Socket TEMP_SOCK =  Chat_Server.ConnectionArray.get(i-1);
+   84						PrintWriter TEMP_OUT = new PrintWriter(TEMP_SOCK.getOutputStream()); 
+   85						TEMP_OUT.println(MESSAGE);                    //print message
+   86						TEMP_OUT.flush();
+   87						System.out.println("Sent to: " + TEMP_SOCK.getLocalAddress().getHostName()); // who recieved message
+   88					    }
+   89	
+   90				    }
+   91	
+   92			    }
+   93		    
+   94			finally
+   95			    {
+   96				SOCK.close();
+   97			    }
+   98		    
+   99		    }
+  100		catch(Exception X) { System.out.print(X);}
+  101	
+  102	    }
+  103	
+  104	
+  105	}
+  106	
+  107	
+  108		       
+
+
+
+
+
+
+
+
+
